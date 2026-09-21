@@ -7,6 +7,8 @@ import {
   StateGraph,
 } from "@langchain/langgraph";
 
+import {OpsPilotState, OpsPilotStateType} from "./state.js";
+
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 
 import { SystemMessage } from "@langchain/core/messages";
@@ -41,26 +43,52 @@ const modelWithTools = model.bindTools(tools);
  * 我们把 messages 发给 LLM。
  */
 async function investigator(
-  state: typeof MessagesAnnotation.State
+  state: OpsPilotStateType
 ) {
-  console.log("\n🧠 Investigator running...");
+  console.log(
+    `\n🧠 Investigation step ${state.investigationSteps + 1}`
+  );
+
+  console.log(
+    `Incident: ${state.incidentId}`
+  );
+
+  console.log(
+    `Environment: ${state.environment}`
+  );
+
+  console.log(
+    `Service: ${state.service}`
+  );
+
   const response = await modelWithTools.invoke([
-    new SystemMessage(SYSTEM_PROMPT),
+    new SystemMessage(`
+${SYSTEM_PROMPT}
+
+Incident context:
+- Incident ID: ${state.incidentId}
+- Environment: ${state.environment}
+- Service: ${state.service}
+    `),
     ...state.messages,
   ]);
+
   if (response.tool_calls?.length) {
-  for (const toolCall of response.tool_calls) {
-    console.log(
-      `🔧 Requesting tool: ${toolCall.name}`,
-      toolCall.args
-    );
+    for (const toolCall of response.tool_calls) {
+      console.log(
+        `🔧 Requesting tool: ${toolCall.name}`,
+        toolCall.args
+      );
+    }
+  } else {
+    console.log("✅ Investigation complete.");
   }
-} else {
-  console.log("✅ Investigation complete.");
-}
 
   return {
     messages: [response],
+
+    // reducer 会执行 current + 1
+    investigationSteps: 1,
   };
 }
 
@@ -69,10 +97,22 @@ async function investigator(
  * 决定下一步去哪里
  */
 function shouldContinue(
-  state: typeof MessagesAnnotation.State
+  state: OpsPilotStateType
 ) {
   const lastMessage =
     state.messages[state.messages.length - 1];
+
+  // Safety limit
+  if (
+    state.investigationSteps >=
+    state.maxInvestigationSteps
+  ) {
+    console.log(
+      `⚠️ Maximum investigation steps reached: ${state.maxInvestigationSteps}`
+    );
+
+    return END;
+  }
 
   if (
     "tool_calls" in lastMessage &&
@@ -103,7 +143,7 @@ const toolNode = new ToolNode(tools);
 /**
  * Build Graph
  */
-const workflow = new StateGraph(MessagesAnnotation)
+const workflow = new StateGraph(OpsPilotState)
 
   .addNode("investigator", investigator)
 
