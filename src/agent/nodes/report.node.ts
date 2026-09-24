@@ -1,5 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { SystemMessage } from "@langchain/core/messages";
+import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
 import type { OpsPilotStateType } from "../state.js";
 
@@ -12,6 +12,19 @@ export async function reportNode(
   state: OpsPilotStateType
 ) {
   console.log("\n📝 Generating incident report...");
+  const evidenceText =
+    state.evidence
+      .map(
+        (evidence, index) => `
+Evidence ${index + 1}
+ID: ${evidence.id}
+Source: ${evidence.source}
+Type: ${evidence.type}
+Timestamp: ${evidence.timestamp ?? "unknown"}
+Summary: ${evidence.summary}
+`
+      )
+      .join("\n");
 
   const response = await reportModel.invoke([
     new SystemMessage(`
@@ -47,8 +60,20 @@ Confidence must be one of:
 
 ## Recommended Next Steps
     `),
+    new HumanMessage(`
+Incident ID:
+${state.incidentId}
 
-    ...state.messages,
+Environment:
+${state.environment}
+
+Service:
+${state.service}
+
+Collected Evidence:
+
+${evidenceText}
+      `),
   ]);
 
   return {

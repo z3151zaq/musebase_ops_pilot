@@ -5,11 +5,13 @@ import {
   START,
   MessagesAnnotation,
   StateGraph,
+  MemorySaver,
 } from "@langchain/langgraph";
 
 import {OpsPilotState, OpsPilotStateType} from "./state.js";
 
 import { ToolNode } from "@langchain/langgraph/prebuilt";
+
 
 import { SystemMessage } from "@langchain/core/messages";
 
@@ -17,6 +19,7 @@ import { searchLogs } from "../tools/logs.tool.js";
 import { getRecentDeployments } from "../tools/deployment.tool.js";
 import { getCommit } from "../tools/github.tool.js";
 import { reportNode } from "./nodes/report.node.js";
+import { evidenceNode } from "./nodes/evidence.node.js";
 
 import { SYSTEM_PROMPT } from "./prompts.js";
 
@@ -115,7 +118,7 @@ function routeAfterInvestigator(
   return "report";
 }
 
-function routeAfterTools(
+function routeAfterEvidence(
   state: OpsPilotStateType
 ): "investigator" | "report" {
   if (
@@ -145,6 +148,7 @@ function routeAfterTools(
  */
 const toolNode = new ToolNode(tools);
 
+const checkpointer = new MemorySaver();
 
 /**
  * Build Graph
@@ -159,8 +163,13 @@ const workflow = new StateGraph(
 
   .addNode(
     "tools",
-    new ToolNode(tools)
+    toolNode
   )
+
+  .addNode(
+  "extractEvidence",
+  evidenceNode
+)
 
   .addNode(
     "report",
@@ -178,9 +187,14 @@ const workflow = new StateGraph(
   ["tools", "report"]
 )
 
-.addConditionalEdges(
+.addEdge(
   "tools",
-  routeAfterTools,
+  "extractEvidence"
+)
+
+.addConditionalEdges(
+  "extractEvidence",
+  routeAfterEvidence,
   ["investigator", "report"]
 )
 
@@ -190,4 +204,6 @@ const workflow = new StateGraph(
   );
 
 
-export const graph = workflow.compile();
+export const graph = workflow.compile({
+  checkpointer,
+});

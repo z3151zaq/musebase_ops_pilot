@@ -2,6 +2,7 @@ import {
   Annotation,
   MessagesAnnotation,
 } from "@langchain/langgraph";
+import type { Evidence } from "./evidence.js";
 
 export const OpsPilotState = Annotation.Root({
   ...MessagesAnnotation.spec,
@@ -11,6 +12,14 @@ export const OpsPilotState = Annotation.Root({
   environment: Annotation<string>,
 
   service: Annotation<string>,
+
+  evidence: Annotation<Evidence[]>({
+    reducer: (current, update) => [
+      ...current,
+      ...update,
+    ],
+    default: () => [],
+  }),
 
   investigationSteps: Annotation<number>({
     reducer: (current, update) => current + update,

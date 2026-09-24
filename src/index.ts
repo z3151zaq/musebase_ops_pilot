@@ -4,8 +4,16 @@ import { HumanMessage } from "@langchain/core/messages";
 
 import { graph } from "./agent/graph.js";
 
+const incidentId = "INC-001";
+
+const config = {
+  configurable: {
+    thread_id: incidentId,
+  },
+};
+
 const result = await graph.invoke({
-  incidentId: "INC-001",
+  incidentId,
 
   environment: "production",
 
@@ -13,14 +21,14 @@ const result = await graph.invoke({
 
   investigationSteps: 0,
 
-  maxInvestigationSteps: 2,
+  maxInvestigationSteps: 10,
 
   messages: [
     new HumanMessage(
       "Users are reporting that order creation started failing this afternoon. Investigate the issue."
     ),
   ],
-});
+}, config);
 
 console.log(
   "\n========== INCIDENT REPORT ==========\n"
@@ -31,14 +39,60 @@ const lastMessage =
 
 console.log(lastMessage.content);
 
+const snapshot =
+  await graph.getState(config);
+
 console.log(
-  "\n========== METADATA ==========\n"
+  "\n========== CHECKPOINT ==========\n"
 );
 
 console.log({
-  incidentId: result.incidentId,
-  environment: result.environment,
-  service: result.service,
+  incidentId:
+    snapshot.values.incidentId,
+
+  environment:
+    snapshot.values.environment,
+
+  service:
+    snapshot.values.service,
+
   investigationSteps:
-    result.investigationSteps,
+    snapshot.values.investigationSteps,
+
+  messageCount:
+    snapshot.values.messages.length,
 });
+
+console.log(
+  "\n========== EVIDENCE ==========\n"
+);
+
+for (const evidence of result.evidence) {
+  console.log({
+    id: evidence.id,
+    source: evidence.source,
+    type: evidence.type,
+    summary: evidence.summary,
+  });
+}
+// const secondResult = await graph.invoke(
+//   {
+//     messages: [
+//       new HumanMessage(
+//         "What evidence did you find during the investigation?"
+//       ),
+//     ],
+//   },
+//   config
+// );
+
+// const secondLastMessage =
+//   secondResult.messages[
+//     secondResult.messages.length - 1
+//   ];
+
+// console.log(
+//   "\n========== FOLLOW-UP ==========\n"
+// );
+
+// console.log(secondLastMessage.content);
