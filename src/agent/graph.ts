@@ -16,6 +16,7 @@ import { SystemMessage } from "@langchain/core/messages";
 import { searchLogs } from "../tools/logs.tool.js";
 import { getRecentDeployments } from "../tools/deployment.tool.js";
 import { getCommit } from "../tools/github.tool.js";
+import { reportNode } from "./nodes/report.node.js";
 
 import { SYSTEM_PROMPT } from "./prompts.js";
 
@@ -96,13 +97,27 @@ Incident context:
 /**
  * 决定下一步去哪里
  */
-function shouldContinue(
+function routeAfterInvestigator(
   state: OpsPilotStateType
-) {
+): "tools" | "report" {
   const lastMessage =
     state.messages[state.messages.length - 1];
 
-  // Safety limit
+  const hasToolCalls =
+    "tool_calls" in lastMessage &&
+    Array.isArray(lastMessage.tool_calls) &&
+    lastMessage.tool_calls.length > 0;
+
+  if (hasToolCalls) {
+    return "tools";
+  }
+
+  return "report";
+}
+
+function routeAfterTools(
+  state: OpsPilotStateType
+): "investigator" | "report" {
   if (
     state.investigationSteps >=
     state.maxInvestigationSteps
@@ -111,20 +126,11 @@ function shouldContinue(
       `⚠️ Maximum investigation steps reached: ${state.maxInvestigationSteps}`
     );
 
-    return END;
+    return "report";
   }
 
-  if (
-    "tool_calls" in lastMessage &&
-    Array.isArray(lastMessage.tool_calls) &&
-    lastMessage.tool_calls.length > 0
-  ) {
-    return "tools";
-  }
-
-  return END;
+  return "investigator";
 }
-
 
 /**
  * ToolNode 自动：
@@ -143,26 +149,44 @@ const toolNode = new ToolNode(tools);
 /**
  * Build Graph
  */
-const workflow = new StateGraph(OpsPilotState)
+const workflow = new StateGraph(
+  OpsPilotState
+)
+  .addNode(
+    "investigator",
+    investigator
+  )
 
-  .addNode("investigator", investigator)
+  .addNode(
+    "tools",
+    new ToolNode(tools)
+  )
 
-  .addNode("tools", toolNode)
+  .addNode(
+    "report",
+    reportNode
+  )
 
   .addEdge(
     START,
     "investigator"
   )
 
-  .addConditionalEdges(
-    "investigator",
-    shouldContinue,
-    ["tools", END]
-  )
+.addConditionalEdges(
+  "investigator",
+  routeAfterInvestigator,
+  ["tools", "report"]
+)
+
+.addConditionalEdges(
+  "tools",
+  routeAfterTools,
+  ["investigator", "report"]
+)
 
   .addEdge(
-    "tools",
-    "investigator"
+    "report",
+    END
   );
 
 

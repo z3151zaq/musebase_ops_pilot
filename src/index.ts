@@ -13,7 +13,7 @@ const result = await graph.invoke({
 
   investigationSteps: 0,
 
-  maxInvestigationSteps: 10,
+  maxInvestigationSteps: 2,
 
   messages: [
     new HumanMessage(
