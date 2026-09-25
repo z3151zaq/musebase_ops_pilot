@@ -52,7 +52,7 @@ function parseToolContent(
 
 function toolMessageToEvidence(
   message: ToolMessage
-): Evidence {
+): Evidence | null {
   const data = parseToolContent(message);
 
   switch (message.name) {
@@ -229,7 +229,10 @@ export async function evidenceNode(
     return {};
   }
 
-  const evidence = toolMessages.filter(message => evidenceToolNames.has(message.name ?? "")).map(toolMessageToEvidence);
+  const evidence = toolMessages
+    .filter(message => evidenceToolNames.has(message.name ?? ""))
+    .map(toolMessageToEvidence)
+    .filter((item): item is Evidence => item !== null);
 
   for (const item of evidence) {
     console.log(
