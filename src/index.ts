@@ -67,14 +67,13 @@ console.log(
   "\n========== EVIDENCE ==========\n"
 );
 
-for (const evidence of result.evidence) {
-  console.log({
-    id: evidence.id,
-    source: evidence.source,
-    type: evidence.type,
-    summary: evidence.summary,
-  });
-}
+console.log(
+  JSON.stringify(
+    result.evidence,
+    null,
+    2
+  )
+);
 // const secondResult = await graph.invoke(
 //   {
 //     messages: [

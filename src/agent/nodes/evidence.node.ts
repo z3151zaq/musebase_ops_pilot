@@ -10,6 +10,133 @@ import type {
   EvidenceType,
 } from "../evidence.js";
 
+function getLatestToolMessages(
+  messages: OpsPilotStateType["messages"]
+): ToolMessage[] {
+  const toolMessages: ToolMessage[] = [];
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+
+    if (!(message instanceof ToolMessage)) {
+      break;
+    }
+
+    toolMessages.unshift(message);
+  }
+
+  return toolMessages;
+}
+
+function parseToolContent(
+  message: ToolMessage
+): unknown {
+  if (typeof message.content !== "string") {
+    return message.content;
+  }
+
+  try {
+    return JSON.parse(message.content);
+  } catch {
+    return message.content;
+  }
+}
+
+function toolMessageToEvidence(
+  message: ToolMessage
+): Evidence {
+  const data = parseToolContent(message);
+
+  switch (message.name) {
+    case "search_logs": {
+      const logs = data as {
+        timestamp?: string;
+        summary?: string;
+        error?: string;
+      };
+
+      return {
+        id: crypto.randomUUID(),
+
+        source: "logs",
+
+        type: "error",
+
+        timestamp: logs.timestamp,
+
+        summary:
+          logs.summary ??
+          logs.error ??
+          "Production log evidence collected.",
+
+        rawData: data,
+      };
+    }
+
+
+    case "get_recent_deployments": {
+      const deployments =
+        data as Array<{
+          version: string;
+          deployedAt: string;
+          commit: string;
+        }>;
+
+      const latest = deployments[0];
+
+      return {
+        id: crypto.randomUUID(),
+
+        source: "deployment",
+
+        type: "deployment",
+
+        timestamp: latest?.deployedAt,
+
+        summary: latest
+          ? `${latest.version} was deployed at ${latest.deployedAt} from commit ${latest.commit}.`
+          : "No recent deployments found.",
+
+        rawData: data,
+      };
+    }
+
+
+    case "get_commit": {
+      const commit =
+        data as {
+          sha?: string;
+          pullRequest?: number;
+          title?: string;
+          filesChanged?: string[];
+        };
+
+      return {
+        id: crypto.randomUUID(),
+
+        source: "github",
+
+        type: "code_change",
+
+        summary:
+          `Commit ${commit.sha ?? "unknown"} ` +
+          `(${commit.title ?? "unknown change"}) ` +
+          `changed ${
+            commit.filesChanged?.join(", ") ??
+            "unknown files"
+          }.`,
+
+        rawData: data,
+      };
+    }
+
+
+    default:
+      throw new Error(
+        `Unsupported evidence tool: ${message.name}`
+      );
+  }
+}
 
 function getEvidenceMetadata(
   toolName?: string
@@ -51,35 +178,25 @@ export async function evidenceNode(
     "\n📚 Extracting evidence..."
   );
 
-  const lastMessage =
-    state.messages[
-      state.messages.length - 1
-    ];
+  const toolMessages =
+    getLatestToolMessages(state.messages);
 
-  if (!(lastMessage instanceof ToolMessage)) {
+  if (toolMessages.length === 0) {
     return {};
   }
 
-  const metadata =
-    getEvidenceMetadata(lastMessage.name);
+  const evidence =
+    toolMessages.map(
+      toolMessageToEvidence
+    );
 
-  const evidence: Evidence = {
-    id: crypto.randomUUID(),
-
-    source: metadata.source,
-
-    type: metadata.type,
-
-    summary: String(lastMessage.content),
-
-    rawData: lastMessage.content,
-  };
-
-  console.log(
-    `📌 Evidence collected: ${evidence.id}`
-  );
+  for (const item of evidence) {
+    console.log(
+      `📌 Evidence collected: ${item.source} — ${item.summary}`
+    );
+  }
 
   return {
-    evidence: [evidence],
+    evidence,
   };
 }

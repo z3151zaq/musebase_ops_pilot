@@ -6,16 +6,20 @@ export const searchLogs = tool(
     console.log(`🔍 Searching production logs: ${query}`);
 
     // 现在先返回 mock data
-    return `
-      2026-09-20 14:26:13 ERROR
-      POST /api/orders
+    return JSON.stringify({
+  timestamp: "2026-09-20T14:26:13+12:00",
 
-      ValidationException:
-      customer_id cannot be null
+  endpoint: "POST /api/orders",
 
-      Error rate increased from 0.8% to 12.4%
-      starting at 14:26.
-    `;
+  error: "ValidationException: customer_id cannot be null",
+
+  errorRateBefore: 0.8,
+
+  errorRateAfter: 12.4,
+
+  summary:
+    "Order API error rate increased from 0.8% to 12.4%.",
+});
   },
   {
     name: "search_logs",
