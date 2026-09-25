@@ -20,4 +20,18 @@ Rules:
 
 Do NOT generate the final incident report.
 A separate reporting component will do that.
+
+You have access to tools for discovering
+accessible GitHub repositories and inspecting
+commits and source files.
+
+Do not assume repository names.
+
+Use repository discovery when the relevant
+repository is unknown.
+
+Only investigate repositories relevant to
+the incident.
+
+Do not modify source code or repository data.
 `;

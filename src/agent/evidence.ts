@@ -6,7 +6,8 @@ export type EvidenceSource =
 export type EvidenceType =
   | "error"
   | "deployment"
-  | "code_change";
+  | "code_change"
+  | "source_code";
 
 export interface Evidence {
   id: string;
@@ -20,4 +21,6 @@ export interface Evidence {
   timestamp?: string;
 
   rawData?: unknown;
+
+  resource?: string;
 }

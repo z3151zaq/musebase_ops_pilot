@@ -17,7 +17,7 @@ const result = await graph.invoke({
 
   environment: "production",
 
-  service: "order-service",
+  service: "talent-service",
 
   investigationSteps: 0,
 
@@ -25,7 +25,7 @@ const result = await graph.invoke({
 
   messages: [
     new HumanMessage(
-      "Users are reporting that order creation started failing this afternoon. Investigate the issue."
+      "Investigate whether any recent GitHub changes could be related to the talent service."
     ),
   ],
 }, config);

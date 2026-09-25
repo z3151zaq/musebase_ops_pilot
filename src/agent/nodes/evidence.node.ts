@@ -10,6 +10,14 @@ import type {
   EvidenceType,
 } from "../evidence.js";
 
+const evidenceToolNames =
+  new Set([
+    "search_logs",
+    "get_recent_deployments",
+    "get_commit",
+    "get_file_content",
+  ]);
+
 function getLatestToolMessages(
   messages: OpsPilotStateType["messages"]
 ): ToolMessage[] {
@@ -64,23 +72,18 @@ function toolMessageToEvidence(
 
         timestamp: logs.timestamp,
 
-        summary:
-          logs.summary ??
-          logs.error ??
-          "Production log evidence collected.",
+        summary: logs.summary ?? logs.error ?? "Production log evidence collected.",
 
         rawData: data,
       };
     }
 
-
     case "get_recent_deployments": {
-      const deployments =
-        data as Array<{
-          version: string;
-          deployedAt: string;
-          commit: string;
-        }>;
+      const deployments = data as Array<{
+        version: string;
+        deployedAt: string;
+        commit: string;
+      }>;
 
       const latest = deployments[0];
 
@@ -101,40 +104,81 @@ function toolMessageToEvidence(
       };
     }
 
+case "get_commit": {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("sha" in data)
+  ) {
+    return null;
+  }
 
-    case "get_commit": {
-      const commit =
-        data as {
-          sha?: string;
-          pullRequest?: number;
-          title?: string;
-          filesChanged?: string[];
-        };
+  const commit = data as {
+    repository: string;
+    sha: string;
+    message: string;
+    author?: string;
+    committedAt?: string;
+    files?: Array<{
+      filename: string;
+      status: string;
+      patch?: string;
+    }>;
+  };
+
+  const title =
+    commit.message
+      ?.split("\n")[0] ??
+    "Unknown commit";
+
+  const changedFiles =
+    commit.files
+      ?.map(file => file.filename)
+      .join(", ") ??
+    "unknown files";
+
+  return {
+    id: crypto.randomUUID(),
+    source: "github",
+    type: "code_change",
+    timestamp: commit.committedAt,
+    resource: commit.repository,
+
+    summary:
+      `Commit ${commit.sha}: "${title}". ` +
+      `Changed files: ${changedFiles}.`,
+
+    rawData: commit,
+  };
+}
+
+    case "get_file_content": {
+      const file = data as {
+        repository?: string;
+        path?: string;
+        sha?: string;
+        content?: string;
+      };
 
       return {
         id: crypto.randomUUID(),
 
         source: "github",
 
-        type: "code_change",
+        type: "source_code",
+
+        resource: file.repository,
 
         summary:
-          `Commit ${commit.sha ?? "unknown"} ` +
-          `(${commit.title ?? "unknown change"}) ` +
-          `changed ${
-            commit.filesChanged?.join(", ") ??
-            "unknown files"
-          }.`,
+          `Source file ${file.path ?? "unknown"} ` +
+          `was inspected from repository ` +
+          `${file.repository ?? "unknown"}.`,
 
         rawData: data,
       };
     }
-
-
     default:
-      throw new Error(
-        `Unsupported evidence tool: ${message.name}`
-      );
+      throw new Error(`Unsupported evidence tool: ${message.name}`);
   }
 }
 
@@ -185,10 +229,7 @@ export async function evidenceNode(
     return {};
   }
 
-  const evidence =
-    toolMessages.map(
-      toolMessageToEvidence
-    );
+  const evidence = toolMessages.filter(message => evidenceToolNames.has(message.name ?? "")).map(toolMessageToEvidence);
 
   for (const item of evidence) {
     console.log(

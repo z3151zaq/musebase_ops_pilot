@@ -17,20 +17,26 @@ import { SystemMessage } from "@langchain/core/messages";
 
 import { searchLogs } from "../tools/logs.tool.js";
 import { getRecentDeployments } from "../tools/deployment.tool.js";
-import { getCommit } from "../tools/github.tool.js";
+
 import { listRepositories } from "../integrations/github/list-repositories.tool.js";
 
 import { reportNode } from "./nodes/report.node.js";
 import { evidenceNode } from "./nodes/evidence.node.js";
   
 import { SYSTEM_PROMPT } from "./prompts.js";
+import { listRecentCommits } from "../integrations/github/list-recent-commits.tool.js";
+import { getCommit } from "../integrations/github/get-commit.tool.js";
+import { getFileContent } from "../integrations/github/get-file-content.tool.js";
 
 
 const tools = [
   searchLogs,
   getRecentDeployments,
+  listRepositories,
+  listRepositories,
+  listRecentCommits,
   getCommit,
-  listRepositories
+  getFileContent,
 ];
 
 
