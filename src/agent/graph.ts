@@ -18,9 +18,11 @@ import { SystemMessage } from "@langchain/core/messages";
 import { searchLogs } from "../tools/logs.tool.js";
 import { getRecentDeployments } from "../tools/deployment.tool.js";
 import { getCommit } from "../tools/github.tool.js";
+import { listRepositories } from "../integrations/github/list-repositories.tool.js";
+
 import { reportNode } from "./nodes/report.node.js";
 import { evidenceNode } from "./nodes/evidence.node.js";
-
+  
 import { SYSTEM_PROMPT } from "./prompts.js";
 
 
@@ -28,6 +30,7 @@ const tools = [
   searchLogs,
   getRecentDeployments,
   getCommit,
+  listRepositories
 ];
 
 
