@@ -12,7 +12,7 @@ import {OpsPilotState, OpsPilotStateType} from "./state.js";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 
 
-import { SystemMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 import { searchLogs } from "../integrations/aws/logs.tool.js";
 import { discoverLogGroupsTool } from "../integrations/aws/discover-log-groups.tool.js";
@@ -64,6 +64,14 @@ function requestMessages(state: OpsPilotStateType) {
   return state.messages.slice(state.requestStartIndex);
 }
 
+function generalConversationMessages(state: OpsPilotStateType) {
+  const previousTurns = state.messages
+    .slice(0, state.requestStartIndex)
+    .filter(message => message instanceof HumanMessage ||
+      (message instanceof AIMessage && !message.tool_calls?.length));
+  return [...previousTurns.slice(-12), ...requestMessages(state)];
+}
+
 function routeAfterRouter(state: OpsPilotStateType): "general" | "investigator" {
   return state.intent === "incident" ? "investigator" : "general";
 }
@@ -71,7 +79,7 @@ function routeAfterRouter(state: OpsPilotStateType): "general" | "investigator" 
 async function generalInvestigator(state: OpsPilotStateType) {
   const response = await generalModel.invoke([
     new SystemMessage(GENERAL_PROMPT),
-    ...requestMessages(state),
+    ...generalConversationMessages(state),
   ]);
 
   return {
@@ -98,7 +106,7 @@ function routeAfterGeneralTools(state: OpsPilotStateType): "general" | "generalA
 async function generalAnswer(state: OpsPilotStateType) {
   const response = await model.invoke([
     new SystemMessage(`${GENERAL_PROMPT}\nAnswer now using the information already gathered. Do not request more tools.`),
-    ...requestMessages(state),
+    ...generalConversationMessages(state),
   ]);
 
   return { messages: [response] };

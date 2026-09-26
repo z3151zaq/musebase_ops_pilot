@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.tsx",
+    "start": "tsx src/index.tsx",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test src/agent/nodes/*.test.ts"
@@ -27,11 +27,14 @@
     "@langchain/langgraph": "^1.4.16",
     "@langchain/openai": "^1.5.13",
     "dotenv": "^18.0.1",
+    "ink": "^7.1.1",
     "octokit": "^5.0.5",
+    "react": "^19.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }

@@ -7,7 +7,7 @@ OpsPilot is a LangGraph incident investigator. It discovers CloudWatch Log Group
 1. Install dependencies with `pnpm install`.
 2. Set `AWS_PROFILE` and `AWS_REGION` in your shell or local `.env`. The profile must already work with the AWS CLI. See `.env.example` for the other variables.
 3. Grant the profile `logs:DescribeLogGroups` for discovery and `logs:FilterLogEvents` for the Log Groups it may read.
-4. Ask a question with `pnpm start "How is Musebase structured?"` or report a fault with `pnpm start "talent-service is returning 500 errors; investigate"`.
+4. Run `pnpm start` for an interactive conversation. Enter a question and press Return; use `/clear` for a new conversation or `/exit` to quit. You can also ask one question with `pnpm start "How is Musebase structured?"`.
 
 The agent classifies each request. Architecture, code, changes, and deployment questions use GitHub read-only tools and produce a direct answer. It can browse repository directories to locate architecture documentation and source files. An explicit bug or incident report uses the incident investigation graph and may query CloudWatch. When the request is unclear, it follows the general path. No incident ID, service, or environment is required for a general question.
 
