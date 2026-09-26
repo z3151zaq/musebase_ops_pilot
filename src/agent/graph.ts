@@ -15,8 +15,8 @@ import { ToolNode } from "@langchain/langgraph/prebuilt";
 
 import { SystemMessage } from "@langchain/core/messages";
 
-import { searchLogs } from "../tools/logs.tool.js";
-import { getRecentDeployments } from "../tools/deployment.tool.js";
+import { searchLogs } from "../integrations/aws/logs.tool.js";
+import { discoverLogGroupsTool } from "../integrations/aws/discover-log-groups.tool.js";
 
 import { listRepositories } from "../integrations/github/list-repositories.tool.js";
 
@@ -30,9 +30,8 @@ import { getFileContent } from "../integrations/github/get-file-content.tool.js"
 
 
 const tools = [
+  discoverLogGroupsTool,
   searchLogs,
-  getRecentDeployments,
-  listRepositories,
   listRepositories,
   listRecentCommits,
   getCommit,

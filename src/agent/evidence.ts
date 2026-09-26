@@ -5,6 +5,8 @@ export type EvidenceSource =
 
 export type EvidenceType =
   | "error"
+  | "log_event"
+  | "log_search"
   | "deployment"
   | "code_change"
   | "source_code";

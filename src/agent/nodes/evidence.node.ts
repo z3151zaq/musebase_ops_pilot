@@ -1,4 +1,5 @@
 import { ToolMessage } from "@langchain/core/messages";
+import { z } from "zod";
 
 import type {
   OpsPilotStateType,
@@ -6,9 +7,21 @@ import type {
 
 import type {
   Evidence,
-  EvidenceSource,
-  EvidenceType,
 } from "../evidence.js";
+
+const logSearchResultSchema = z.object({
+  logGroupName: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  query: z.string().optional(),
+  events: z.array(z.object({
+    timestamp: z.string(),
+    message: z.string(),
+    logStreamName: z.string().optional(),
+  })),
+  matchedEventsRead: z.number(),
+  truncated: z.boolean(),
+});
 
 const evidenceToolNames =
   new Set([
@@ -52,30 +65,46 @@ function parseToolContent(
 
 function toolMessageToEvidence(
   message: ToolMessage
-): Evidence | null {
+): Evidence | Evidence[] | null {
   const data = parseToolContent(message);
 
   switch (message.name) {
     case "search_logs": {
-      const logs = data as {
-        timestamp?: string;
-        summary?: string;
-        error?: string;
-      };
+      const parsed = logSearchResultSchema.safeParse(data);
+      if (!parsed.success) {
+        return null;
+      }
 
-      return {
+      const result = parsed.data;
+      const searchEvidence: Evidence = {
         id: crypto.randomUUID(),
-
         source: "logs",
-
-        type: "error",
-
-        timestamp: logs.timestamp,
-
-        summary: logs.summary ?? logs.error ?? "Production log evidence collected.",
-
-        rawData: data,
+        type: "log_search",
+        resource: result.logGroupName,
+        summary: `Searched ${result.logGroupName} from ${result.startTime} to ${result.endTime}${result.query ? ` for "${result.query}"` : ""}; ${result.events.length} events returned${result.truncated ? " (scan truncated)" : ""}.`,
+        rawData: {
+          query: result.query,
+          startTime: result.startTime,
+          endTime: result.endTime,
+          matchedEventsRead: result.matchedEventsRead,
+          truncated: result.truncated,
+        },
       };
+
+      return [searchEvidence, ...result.events.map(event => ({
+        id: crypto.randomUUID(),
+        source: "logs" as const,
+        type: "log_event" as const,
+        timestamp: event.timestamp,
+        resource: result.logGroupName,
+        summary: event.message.slice(0, 500),
+        rawData: {
+          logStreamName: event.logStreamName,
+          message: event.message,
+          query: result.query,
+          truncated: result.truncated,
+        },
+      }))];
     }
 
     case "get_recent_deployments": {
@@ -182,39 +211,6 @@ case "get_commit": {
   }
 }
 
-function getEvidenceMetadata(
-  toolName?: string
-): {
-  source: EvidenceSource;
-  type: EvidenceType;
-} {
-  switch (toolName) {
-    case "search_logs":
-      return {
-        source: "logs",
-        type: "error",
-      };
-
-    case "get_recent_deployments":
-      return {
-        source: "deployment",
-        type: "deployment",
-      };
-
-    case "get_commit":
-      return {
-        source: "github",
-        type: "code_change",
-      };
-
-    default:
-      throw new Error(
-        `Unsupported evidence tool: ${toolName}`
-      );
-  }
-}
-
-
 export async function evidenceNode(
   state: OpsPilotStateType
 ) {
@@ -232,7 +228,7 @@ export async function evidenceNode(
   const evidence = toolMessages
     .filter(message => evidenceToolNames.has(message.name ?? ""))
     .map(toolMessageToEvidence)
-    .filter((item): item is Evidence => item !== null);
+    .flatMap(item => item === null ? [] : Array.isArray(item) ? item : [item]);
 
   for (const item of evidence) {
     console.log(

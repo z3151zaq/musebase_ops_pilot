@@ -14,6 +14,7 @@ export async function reportNode(
   console.log("\n📝 Generating incident report...");
   const evidenceText =
     state.evidence
+      .slice(-100)
       .map(
         (evidence, index) => `
 Evidence ${index + 1}
@@ -21,6 +22,7 @@ ID: ${evidence.id}
 Source: ${evidence.source}
 Type: ${evidence.type}
 Timestamp: ${evidence.timestamp ?? "unknown"}
+Resource: ${evidence.resource ?? "unknown"}
 Summary: ${evidence.summary}
 `
       )
@@ -71,6 +73,7 @@ Service:
 ${state.service}
 
 Collected Evidence:
+${state.evidence.length > 100 ? `Showing the latest 100 of ${state.evidence.length} evidence items.` : ""}
 
 ${evidenceText}
       `),

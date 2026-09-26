@@ -25,7 +25,7 @@ const result = await graph.invoke({
 
   messages: [
     new HumanMessage(
-      "Investigate whether any recent GitHub changes could be related to the talent service."
+      "Investigate recent production issues affecting talent-service. Discover relevant CloudWatch Log Groups, inspect logs from the past hour, and follow related service clues."
     ),
   ],
 }, config);
