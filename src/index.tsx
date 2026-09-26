@@ -2,12 +2,22 @@ import "dotenv/config";
 
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { Box, render, Text, useApp, useInput } from "ink";
-import Markdown from "ink-markdown";
+import { marked } from "marked";
+import TerminalRenderer from "marked-terminal";
 import React, { useState } from "react";
 
 import { graph } from "./agent/graph.js";
 
 type Turn = { role: "user" | "agent" | "error"; text: string; steps?: string[] };
+
+function terminalMarkdown(source: string): string {
+  return marked.parse(source, {
+    renderer: new TerminalRenderer({
+      width: Math.max(40, (process.stdout.columns || 80) - 4),
+      reflowText: true,
+    }),
+  }).trim();
+}
 
 export function contentToText(content: unknown): string {
   if (typeof content === "string") return content;
@@ -137,7 +147,7 @@ function Chat() {
             {turn.role === "user" ? "You" : turn.role === "error" ? "Error" : "OpsPilot"}
           </Text>
           {turn.steps && <Text dimColor>已完成：{turn.steps.slice(1).join(" → ")}</Text>}
-          {turn.role === "agent" ? <Markdown>{turn.text}</Markdown> : <Text>{turn.text}</Text>}
+          <Text>{turn.role === "agent" ? terminalMarkdown(turn.text) : turn.text}</Text>
         </Box>
       ))}
       {busy && (
