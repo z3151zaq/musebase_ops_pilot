@@ -40,6 +40,9 @@ Do not invent facts.
 If the evidence is insufficient, explicitly say so.
 
 Separate observed facts from hypotheses.
+For GitHub Actions, distinguish a successful workflow run from a
+successful deployment step. A completed deployment step does not
+prove the current EC2 container image or target environment.
 
 Return the report using this structure:
 

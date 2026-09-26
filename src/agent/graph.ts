@@ -27,12 +27,18 @@ import { SYSTEM_PROMPT } from "./prompts.js";
 import { listRecentCommits } from "../integrations/github/list-recent-commits.tool.js";
 import { getCommit } from "../integrations/github/get-commit.tool.js";
 import { getFileContent } from "../integrations/github/get-file-content.tool.js";
+import { listWorkflows } from "../integrations/github/list-workflows.tool.js";
+import { listWorkflowRuns } from "../integrations/github/list-workflow-runs.tool.js";
+import { inspectWorkflowRun } from "../integrations/github/inspect-workflow-run.tool.js";
 
 
 const tools = [
   discoverLogGroupsTool,
   searchLogs,
   listRepositories,
+  listWorkflows,
+  listWorkflowRuns,
+  inspectWorkflowRun,
   listRecentCommits,
   getCommit,
   getFileContent,

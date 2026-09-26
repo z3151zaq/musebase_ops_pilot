@@ -8,6 +8,8 @@ export type EvidenceType =
   | "log_event"
   | "log_search"
   | "deployment"
+  | "deployment_attempt"
+  | "workflow_run"
   | "code_change"
   | "source_code";
 

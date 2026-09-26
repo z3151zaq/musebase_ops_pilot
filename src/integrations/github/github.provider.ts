@@ -60,6 +60,117 @@ export class GitHubProvider {
     };
   }
 
+  async listWorkflows(repository: string, limit = 20, page = 1) {
+    await this.assertRepositoryAccess(repository);
+    const { owner, repo } = this.parseRepository(repository);
+
+    const { data } = await octokit.rest.actions.listRepoWorkflows({
+      owner,
+      repo,
+      per_page: limit,
+      page,
+    });
+
+    return {
+      repository,
+      page,
+      workflows: data.workflows.map(workflow => ({
+        id: workflow.id,
+        name: workflow.name,
+        path: workflow.path,
+        state: workflow.state,
+      })),
+      hasMore: data.total_count > page * limit,
+    };
+  }
+
+  async listWorkflowRuns(repository: string, workflowId: number, limit = 20, page = 1) {
+    await this.assertRepositoryAccess(repository);
+    const { owner, repo } = this.parseRepository(repository);
+
+    const { data } = await octokit.rest.actions.listWorkflowRuns({
+      owner,
+      repo,
+      workflow_id: workflowId,
+      per_page: limit,
+      page,
+    });
+
+    return {
+      repository,
+      workflowId,
+      page,
+      runs: data.workflow_runs.map(run => ({
+        id: run.id,
+        runNumber: run.run_number,
+        runAttempt: run.run_attempt,
+        workflowName: run.name,
+        workflowPath: run.path,
+        event: run.event,
+        branch: run.head_branch,
+        commitSha: run.head_sha,
+        status: run.status,
+        conclusion: run.conclusion,
+        createdAt: run.created_at,
+        startedAt: run.run_started_at,
+        updatedAt: run.updated_at,
+        url: run.html_url,
+      })),
+      hasMore: data.total_count > page * limit,
+    };
+  }
+
+  async getWorkflowRunDetails(repository: string, runId: number) {
+    await this.assertRepositoryAccess(repository);
+    const { owner, repo } = this.parseRepository(repository);
+
+    const [runResponse, jobsResponse] = await Promise.all([
+      octokit.rest.actions.getWorkflowRun({ owner, repo, run_id: runId }),
+      octokit.rest.actions.listJobsForWorkflowRun({
+        owner,
+        repo,
+        run_id: runId,
+        filter: "latest",
+        per_page: 100,
+      }),
+    ]);
+
+    const run = runResponse.data;
+
+    return {
+      repository,
+      runId: run.id,
+      runNumber: run.run_number,
+      runAttempt: run.run_attempt,
+      workflowName: run.name,
+      workflowPath: run.path,
+      event: run.event,
+      branch: run.head_branch,
+      commitSha: run.head_sha,
+      status: run.status,
+      conclusion: run.conclusion,
+      createdAt: run.created_at,
+      startedAt: run.run_started_at,
+      updatedAt: run.updated_at,
+      url: run.html_url,
+      jobs: jobsResponse.data.jobs.map(job => ({
+        name: job.name,
+        status: job.status,
+        conclusion: job.conclusion,
+        startedAt: job.started_at,
+        completedAt: job.completed_at,
+        steps: (job.steps ?? []).map(step => ({
+          name: step.name,
+          status: step.status,
+          conclusion: step.conclusion,
+          startedAt: step.started_at,
+          completedAt: step.completed_at,
+        })),
+      })),
+      jobsTruncated: jobsResponse.data.total_count > jobsResponse.data.jobs.length,
+    };
+  }
+
   async listRecentCommits(repository: string, limit = 10) {
     await this.assertRepositoryAccess(repository);
 
