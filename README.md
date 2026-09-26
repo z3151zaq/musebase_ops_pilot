@@ -14,3 +14,7 @@ The agent classifies each request. Architecture, code, changes, and deployment q
 For incident investigations, the agent discovers CloudWatch Log Groups using the AWS identity, chooses groups relevant to the incident, and can follow clues across services. Searches default to the last 30 minutes and are limited to a 24-hour window, 50 returned events, and five CloudWatch result pages per call.
 
 GitHub access requires `GITHUB_TOKEN` with read access to the relevant repositories and GitHub Actions. The agent discovers workflows and checks jobs and steps before counting a run as a deployment. A successful deployment step confirms the Actions step completed; it does not prove which image is currently running on EC2. Workflows without an explicit GitHub environment do not establish whether their target was production.
+
+## PostgreSQL connection
+
+Set the `PG*` variables from `.env.example` in your ignored local `.env` or deployment environment, then run `pnpm db:check`. The check is read-only and confirms the configured database role can access the `musebase_ops_pilot` schema. The connection pool uses TLS, verifies the server certificate by default, and sets its search path to `musebase_ops_pilot,public`. No tables or agent persistence are created yet.

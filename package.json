@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.tsx",
     "start": "tsx src/index.tsx",
+    "db:check": "tsx src/integrations/postgres/check.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test src/agent/nodes/*.test.ts"
@@ -31,12 +32,14 @@
     "marked": "^15.0.12",
     "marked-terminal": "^7.3.0",
     "octokit": "^5.0.5",
+    "pg": "^8.23.0",
     "react": "^19.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/marked-terminal": "^6.1.1",
     "@types/node": "^26.6.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
