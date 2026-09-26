@@ -17,6 +17,12 @@ For incident investigations, the agent discovers CloudWatch Log Groups using the
 
 GitHub access requires `GITHUB_TOKEN` with read access to the relevant repositories and GitHub Actions. The agent discovers workflows and checks jobs and steps before counting a run as a deployment. A successful deployment step confirms the Actions step completed; it does not prove which image is currently running on EC2. Workflows without an explicit GitHub environment do not establish whether their target was production.
 
-## PostgreSQL connection
+## HTTP API
+
+Main branch updates build and publish the API Docker image, without deployment. Configure the Docker Hub secrets described in [image CI setup](docs/image-ci.md).
+
+Use `pnpm start:api` to start the Fastify service. See [API and YARP integration](docs/api.md) for Identity authentication, owned-session endpoints, streaming events, and Docker deployment. The CLI remains available via `pnpm start`.
+
+## Database configuration
 
 Set the `PG*` variables from `.env.example` in your ignored local `.env` or deployment environment, then run `pnpm db:check`. The check is read-only and confirms the configured database role can access the `musebase_ops_pilot` schema. The connection pool uses TLS, verifies the server certificate by default, and sets its search path to `musebase_ops_pilot,public`. Starting the CLI creates the LangGraph checkpoint and session tables in that schema when needed.

@@ -294,10 +294,6 @@ case "get_commit": {
 export async function evidenceNode(
   state: OpsPilotStateType
 ) {
-  console.log(
-    "\n📚 Extracting evidence..."
-  );
-
   const toolMessages =
     getLatestToolMessages(state.messages);
 
@@ -309,12 +305,6 @@ export async function evidenceNode(
     .filter(message => evidenceToolNames.has(message.name ?? ""))
     .map(toolMessageToEvidence)
     .flatMap(item => item === null ? [] : Array.isArray(item) ? item : [item]);
-
-  for (const item of evidence) {
-    console.log(
-      `📌 Evidence collected: ${item.source} — ${item.summary}`
-    );
-  }
 
   return {
     evidence,

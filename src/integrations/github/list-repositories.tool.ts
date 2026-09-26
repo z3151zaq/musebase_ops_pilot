@@ -7,10 +7,6 @@ import {
 
 export const listRepositories = tool(
   async () => {
-    console.log(
-      "🐙 Discovering accessible GitHub repositories..."
-    );
-
     const repositories =
       await githubProvider.listRepositories();
 

@@ -1,15 +1,12 @@
 import "dotenv/config";
 
-import { AIMessage, HumanMessage } from "@langchain/core/messages";
-import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { Box, render, Text, useApp, useInput } from "ink";
 import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
 import React, { useState } from "react";
 
-import { createGraph } from "./agent/graph.js";
-import { createDatabasePool, databaseSchema } from "./integrations/postgres/client.js";
-import { localIdentity, SessionStore, type StoredTurn } from "./integrations/postgres/sessions.js";
+import { createRuntime } from "./agent/runtime.js";
+import { localIdentity, type StoredTurn } from "./integrations/postgres/sessions.js";
 
 type Turn = { role: "user" | "agent" | "error" | "notice"; text: string; steps?: string[] };
 
@@ -22,20 +19,16 @@ function terminalMarkdown(source: string): string {
   }).trim();
 }
 
-export function contentToText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .filter((block): block is { type: "text"; text: string } =>
-        typeof block === "object" && block !== null &&
-        block.type === "text" && typeof block.text === "string")
-      .map(block => block.text)
-      .join("\n\n");
-  }
-  return JSON.stringify(content, null, 2);
-}
-
 const toolLabels: Record<string, string> = {
+  started: "识别请求类型",
+  router: "完成请求分类",
+  general: "整理查询结果",
+  investigator: "分析调查证据",
+  generalTools: "工具查询已完成",
+  tools: "工具查询已完成",
+  extractEvidence: "提取调查证据",
+  report: "生成调查报告",
+  generalAnswer: "生成最终回答",
   list_repositories: "查找可访问的仓库",
   list_repository_files: "浏览仓库目录",
   get_file_content: "读取源代码",
@@ -48,50 +41,14 @@ const toolLabels: Record<string, string> = {
   search_logs: "查询日志",
 };
 
-function describeUpdate(node: string, update: unknown): string[] {
-  if (node === "router") {
-    const intent = (update as { intent?: string })?.intent;
-    return [intent === "incident" ? "已识别为故障调查" : "已识别为通用查询"];
-  }
-  if (node === "general" || node === "investigator") {
-    const message = (update as { messages?: unknown[] })?.messages?.at(-1);
-    if (message instanceof AIMessage && message.tool_calls?.length) {
-      return message.tool_calls.map(call => toolLabels[call.name] ?? `调用 ${call.name}`);
-    }
-    return [node === "investigator" ? "分析调查证据" : "整理查询结果"];
-  }
-  if (node === "generalTools" || node === "tools") return ["工具查询已完成"];
-  if (node === "extractEvidence") return ["提取调查证据"];
-  if (node === "report" || node === "generalAnswer") return ["生成最终回答"];
-  return [];
-}
-
 async function ask(
   prompt: string,
   threadId: string,
   ownerId: string,
   onProgress?: (step: string) => void,
 ): Promise<string> {
-  if (!await sessions.get(ownerId, threadId)) {
-    throw new Error("Session not found for this local user.");
-  }
-  const config = { configurable: { thread_id: threadId }, streamMode: "updates" as const };
-  const originalLog = console.log;
-  if (onProgress) console.log = () => {};
-  try {
-    const stream = await graph.stream({ messages: [new HumanMessage(prompt)] }, config);
-    for await (const chunk of stream) {
-      for (const [node, update] of Object.entries(chunk as Record<string, unknown>)) {
-        for (const step of describeUpdate(node, update)) onProgress?.(step);
-      }
-    }
-    const snapshot = await graph.getState(config);
-    const answer = contentToText(snapshot.values.messages.at(-1)?.content ?? "No answer returned.");
-    await sessions.appendPair(ownerId, threadId, prompt, answer);
-    return answer;
-  } finally {
-    console.log = originalLog;
-  }
+  return runtime.run(ownerId, threadId, prompt, step =>
+    onProgress?.(toolLabels[step.startsWith("tool:") ? step.slice(5) : step] ?? step));
 }
 
 function Chat({ initialSessionId, initialTurns, ownerId, identityLabel }: {
@@ -212,16 +169,11 @@ function Chat({ initialSessionId, initialTurns, ownerId, identityLabel }: {
 const inputArgs = process.argv.slice(2);
 const prompt = (inputArgs[0] === "--" ? inputArgs.slice(1) : inputArgs).join(" ").trim();
 
-const pool = createDatabasePool();
-const sessions = new SessionStore(pool);
-const checkpointer = new PostgresSaver(pool, undefined, { schema: databaseSchema });
-const graph = createGraph(checkpointer);
+const runtime = await createRuntime();
+const sessions = runtime.sessions;
 const identity = localIdentity();
 
 try {
-  await checkpointer.setup();
-  await sessions.setup();
-
   if (prompt) {
     const session = await sessions.create(identity.ownerId);
     console.log(await ask(prompt, session.id, identity.ownerId));
@@ -243,5 +195,5 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
-  await pool.end();
+  await runtime.close();
 }

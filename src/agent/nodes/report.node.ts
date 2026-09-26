@@ -11,7 +11,6 @@ const reportModel = new ChatOpenAI({
 export async function reportNode(
   state: OpsPilotStateType
 ) {
-  console.log("\n📝 Generating incident report...");
   const currentEvidence = state.evidence.slice(state.evidenceStartIndex);
   const evidenceText =
     currentEvidence

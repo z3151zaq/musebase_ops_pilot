@@ -38,8 +38,6 @@ export function createRouterNode(
     const request = latestUserRequest(state);
     const intent = await classify(request.text);
 
-    console.log(`\n🧭 Request route: ${intent}`);
-
     return {
       intent,
       requestStartIndex: request.index,

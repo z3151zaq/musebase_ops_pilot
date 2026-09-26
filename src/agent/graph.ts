@@ -122,22 +122,6 @@ async function generalAnswer(state: OpsPilotStateType) {
 async function investigator(
   state: OpsPilotStateType
 ) {
-  console.log(
-    `\n🧠 Investigation step ${state.investigationSteps + 1}`
-  );
-
-  console.log(
-    `Incident: ${state.incidentId}`
-  );
-
-  console.log(
-    `Environment: ${state.environment}`
-  );
-
-  console.log(
-    `Service: ${state.service}`
-  );
-
   const response = await incidentModel.invoke([
     new SystemMessage(`
 ${SYSTEM_PROMPT}
@@ -149,17 +133,6 @@ Incident context:
     `),
     ...requestMessages(state),
   ]);
-
-  if (response.tool_calls?.length) {
-    for (const toolCall of response.tool_calls) {
-      console.log(
-        `🔧 Requesting tool: ${toolCall.name}`,
-        toolCall.args
-      );
-    }
-  } else {
-    console.log("✅ Investigation complete.");
-  }
 
   return {
     messages: [response],
@@ -198,10 +171,6 @@ function routeAfterEvidence(
     state.investigationSteps >=
     state.maxInvestigationSteps
   ) {
-    console.log(
-      `⚠️ Maximum investigation steps reached: ${state.maxInvestigationSteps}`
-    );
-
     return "report";
   }
 
