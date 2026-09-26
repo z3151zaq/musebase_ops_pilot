@@ -9,7 +9,7 @@
     "start": "tsx src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/agent/nodes/evidence.node.test.ts"
+    "test": "node --import tsx --test src/agent/nodes/*.test.ts"
   },
   "keywords": [],
   "author": "",

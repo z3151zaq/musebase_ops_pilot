@@ -12,8 +12,9 @@ export async function reportNode(
   state: OpsPilotStateType
 ) {
   console.log("\n📝 Generating incident report...");
+  const currentEvidence = state.evidence.slice(state.evidenceStartIndex);
   const evidenceText =
-    state.evidence
+    currentEvidence
       .slice(-100)
       .map(
         (evidence, index) => `
@@ -67,16 +68,16 @@ Confidence must be one of:
     `),
     new HumanMessage(`
 Incident ID:
-${state.incidentId}
+${state.incidentId || "not provided"}
 
 Environment:
-${state.environment}
+${state.environment || "not provided"}
 
 Service:
-${state.service}
+${state.service || "not provided"}
 
 Collected Evidence:
-${state.evidence.length > 100 ? `Showing the latest 100 of ${state.evidence.length} evidence items.` : ""}
+${currentEvidence.length > 100 ? `Showing the latest 100 of ${currentEvidence.length} evidence items.` : ""}
 
 ${evidenceText}
       `),

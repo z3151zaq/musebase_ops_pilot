@@ -3,7 +3,6 @@ import { ChatOpenAI } from "@langchain/openai";
 import {
   END,
   START,
-  MessagesAnnotation,
   StateGraph,
   MemorySaver,
 } from "@langchain/langgraph";
@@ -22,19 +21,19 @@ import { listRepositories } from "../integrations/github/list-repositories.tool.
 
 import { reportNode } from "./nodes/report.node.js";
 import { evidenceNode } from "./nodes/evidence.node.js";
+import { routerNode } from "./nodes/router.node.js";
   
-import { SYSTEM_PROMPT } from "./prompts.js";
+import { GENERAL_PROMPT, SYSTEM_PROMPT } from "./prompts.js";
 import { listRecentCommits } from "../integrations/github/list-recent-commits.tool.js";
 import { getCommit } from "../integrations/github/get-commit.tool.js";
 import { getFileContent } from "../integrations/github/get-file-content.tool.js";
+import { listRepositoryFiles } from "../integrations/github/list-repository-files.tool.js";
 import { listWorkflows } from "../integrations/github/list-workflows.tool.js";
 import { listWorkflowRuns } from "../integrations/github/list-workflow-runs.tool.js";
 import { inspectWorkflowRun } from "../integrations/github/inspect-workflow-run.tool.js";
 
 
-const tools = [
-  discoverLogGroupsTool,
-  searchLogs,
+const githubTools = [
   listRepositories,
   listWorkflows,
   listWorkflowRuns,
@@ -42,6 +41,13 @@ const tools = [
   listRecentCommits,
   getCommit,
   getFileContent,
+  listRepositoryFiles,
+];
+
+const incidentTools = [
+  discoverLogGroupsTool,
+  searchLogs,
+  ...githubTools,
 ];
 
 
@@ -51,7 +57,52 @@ const model = new ChatOpenAI({
 });
 
 
-const modelWithTools = model.bindTools(tools);
+const incidentModel = model.bindTools(incidentTools);
+const generalModel = model.bindTools(githubTools);
+
+function requestMessages(state: OpsPilotStateType) {
+  return state.messages.slice(state.requestStartIndex);
+}
+
+function routeAfterRouter(state: OpsPilotStateType): "general" | "investigator" {
+  return state.intent === "incident" ? "investigator" : "general";
+}
+
+async function generalInvestigator(state: OpsPilotStateType) {
+  const response = await generalModel.invoke([
+    new SystemMessage(GENERAL_PROMPT),
+    ...requestMessages(state),
+  ]);
+
+  return {
+    messages: [response],
+    generalSteps: state.generalSteps + 1,
+  };
+}
+
+function routeAfterGeneral(state: OpsPilotStateType): "generalTools" | typeof END {
+  const lastMessage = state.messages[state.messages.length - 1];
+  return "tool_calls" in lastMessage &&
+    Array.isArray(lastMessage.tool_calls) &&
+    lastMessage.tool_calls.length > 0
+    ? "generalTools"
+    : END;
+}
+
+function routeAfterGeneralTools(state: OpsPilotStateType): "general" | "generalAnswer" {
+  return state.generalSteps >= state.maxGeneralSteps
+    ? "generalAnswer"
+    : "general";
+}
+
+async function generalAnswer(state: OpsPilotStateType) {
+  const response = await model.invoke([
+    new SystemMessage(`${GENERAL_PROMPT}\nAnswer now using the information already gathered. Do not request more tools.`),
+    ...requestMessages(state),
+  ]);
+
+  return { messages: [response] };
+}
 
 
 /**
@@ -79,16 +130,16 @@ async function investigator(
     `Service: ${state.service}`
   );
 
-  const response = await modelWithTools.invoke([
+  const response = await incidentModel.invoke([
     new SystemMessage(`
 ${SYSTEM_PROMPT}
 
 Incident context:
-- Incident ID: ${state.incidentId}
-- Environment: ${state.environment}
-- Service: ${state.service}
+- Incident ID: ${state.incidentId || "not provided"}
+- Environment: ${state.environment || "not provided"}
+- Service: ${state.service || "not provided"}
     `),
-    ...state.messages,
+    ...requestMessages(state),
   ]);
 
   if (response.tool_calls?.length) {
@@ -105,8 +156,8 @@ Incident context:
   return {
     messages: [response],
 
-    // reducer 会执行 current + 1
-    investigationSteps: 1,
+    // 直接记录下一次调查步数，避免跨轮次累计。
+    investigationSteps: state.investigationSteps + 1,
   };
 }
 
@@ -160,7 +211,8 @@ function routeAfterEvidence(
  * ↓
  * 生成 ToolMessage
  */
-const toolNode = new ToolNode(tools);
+const toolNode = new ToolNode(incidentTools);
+const generalToolNode = new ToolNode(githubTools);
 
 const checkpointer = new MemorySaver();
 
@@ -170,6 +222,10 @@ const checkpointer = new MemorySaver();
 const workflow = new StateGraph(
   OpsPilotState
 )
+  .addNode("router", routerNode)
+  .addNode("general", generalInvestigator)
+  .addNode("generalTools", generalToolNode)
+  .addNode("generalAnswer", generalAnswer)
   .addNode(
     "investigator",
     investigator
@@ -192,8 +248,28 @@ const workflow = new StateGraph(
 
   .addEdge(
     START,
-    "investigator"
+    "router"
   )
+
+  .addConditionalEdges(
+    "router",
+    routeAfterRouter,
+    ["general", "investigator"]
+  )
+
+  .addConditionalEdges(
+    "general",
+    routeAfterGeneral,
+    ["generalTools", END]
+  )
+
+  .addConditionalEdges(
+    "generalTools",
+    routeAfterGeneralTools,
+    ["general", "generalAnswer"]
+  )
+
+  .addEdge("generalAnswer", END)
 
 .addConditionalEdges(
   "investigator",

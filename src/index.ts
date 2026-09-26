@@ -4,94 +4,35 @@ import { HumanMessage } from "@langchain/core/messages";
 
 import { graph } from "./agent/graph.js";
 
-const incidentId = "INC-001";
+const inputArgs = process.argv.slice(2);
+const prompt = (inputArgs[0] === "--" ? inputArgs.slice(1) : inputArgs)
+  .join(" ")
+  .trim();
+
+if (!prompt) {
+  console.error('Usage: pnpm start "Ask about Musebase or report an incident"');
+  process.exit(1);
+}
 
 const config = {
   configurable: {
-    thread_id: incidentId,
+    thread_id: crypto.randomUUID(),
   },
 };
 
 const result = await graph.invoke({
-  incidentId,
-
-  environment: "production",
-
-  service: "talent-service",
-
-  investigationSteps: 0,
-
-  maxInvestigationSteps: 10,
-
-  messages: [
-    new HumanMessage(
-      "Investigate recent production issues affecting talent-service. Discover relevant CloudWatch Log Groups, inspect logs from the past hour, and check whether recent GitHub Actions deployment steps could be related."
-    ),
-  ],
+  messages: [new HumanMessage(prompt)],
 }, config);
 
-console.log(
-  "\n========== INCIDENT REPORT ==========\n"
-);
-
-const lastMessage =
-  result.messages[result.messages.length - 1];
-
+const lastMessage = result.messages[result.messages.length - 1];
+console.log("\n========== ANSWER ==========\n");
 console.log(lastMessage.content);
 
-const snapshot =
-  await graph.getState(config);
-
-console.log(
-  "\n========== CHECKPOINT ==========\n"
-);
-
+const snapshot = await graph.getState(config);
+console.log("\n========== REQUEST ==========\n");
 console.log({
-  incidentId:
-    snapshot.values.incidentId,
-
-  environment:
-    snapshot.values.environment,
-
-  service:
-    snapshot.values.service,
-
-  investigationSteps:
-    snapshot.values.investigationSteps,
-
-  messageCount:
-    snapshot.values.messages.length,
+  intent: snapshot.values.intent,
+  investigationSteps: snapshot.values.investigationSteps,
+  generalSteps: snapshot.values.generalSteps,
+  evidenceCount: snapshot.values.evidence.length - snapshot.values.evidenceStartIndex,
 });
-
-console.log(
-  "\n========== EVIDENCE ==========\n"
-);
-
-console.log(
-  JSON.stringify(
-    result.evidence,
-    null,
-    2
-  )
-);
-// const secondResult = await graph.invoke(
-//   {
-//     messages: [
-//       new HumanMessage(
-//         "What evidence did you find during the investigation?"
-//       ),
-//     ],
-//   },
-//   config
-// );
-
-// const secondLastMessage =
-//   secondResult.messages[
-//     secondResult.messages.length - 1
-//   ];
-
-// console.log(
-//   "\n========== FOLLOW-UP ==========\n"
-// );
-
-// console.log(secondLastMessage.content);

@@ -14,7 +14,12 @@ function stateWithMessage(message: ToolMessage): OpsPilotStateType {
     environment: "production",
     service: "talent-service",
     evidence: [],
+    intent: "incident",
+    requestStartIndex: 0,
+    evidenceStartIndex: 0,
     investigationSteps: 1,
+    generalSteps: 0,
+    maxGeneralSteps: 6,
     maxInvestigationSteps: 10,
   };
 }

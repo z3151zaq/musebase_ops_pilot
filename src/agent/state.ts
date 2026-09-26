@@ -4,14 +4,40 @@ import {
 } from "@langchain/langgraph";
 import type { Evidence } from "./evidence.js";
 
+export type RequestIntent = "general" | "incident";
+
 export const OpsPilotState = Annotation.Root({
   ...MessagesAnnotation.spec,
 
-  incidentId: Annotation<string>,
+  incidentId: Annotation<string>({
+    reducer: (_, update) => update,
+    default: () => "",
+  }),
 
-  environment: Annotation<string>,
+  environment: Annotation<string>({
+    reducer: (_, update) => update,
+    default: () => "",
+  }),
 
-  service: Annotation<string>,
+  service: Annotation<string>({
+    reducer: (_, update) => update,
+    default: () => "",
+  }),
+
+  intent: Annotation<RequestIntent>({
+    reducer: (_, update) => update,
+    default: () => "general",
+  }),
+
+  requestStartIndex: Annotation<number>({
+    reducer: (_, update) => update,
+    default: () => 0,
+  }),
+
+  evidenceStartIndex: Annotation<number>({
+    reducer: (_, update) => update,
+    default: () => 0,
+  }),
 
   evidence: Annotation<Evidence[]>({
     reducer: (current, update) => [
@@ -22,8 +48,18 @@ export const OpsPilotState = Annotation.Root({
   }),
 
   investigationSteps: Annotation<number>({
-    reducer: (current, update) => current + update,
+    reducer: (_, update) => update,
     default: () => 0,
+  }),
+
+  generalSteps: Annotation<number>({
+    reducer: (_, update) => update,
+    default: () => 0,
+  }),
+
+  maxGeneralSteps: Annotation<number>({
+    reducer: (_, update) => update,
+    default: () => 6,
   }),
 
   maxInvestigationSteps: Annotation<number>({

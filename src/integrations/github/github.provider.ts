@@ -60,6 +60,34 @@ export class GitHubProvider {
     };
   }
 
+  async listRepositoryFiles(repository: string, path = "", ref?: string) {
+    await this.assertRepositoryAccess(repository);
+    const { owner, repo } = this.parseRepository(repository);
+
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path,
+      ref,
+    });
+
+    if (!Array.isArray(data)) {
+      throw new Error(`Path is not a directory: ${path || "/"}`);
+    }
+
+    return {
+      repository,
+      path: path || "/",
+      ref: ref ?? null,
+      entries: data.slice(0, 200).map(entry => ({
+        path: entry.path,
+        type: entry.type,
+        size: entry.size,
+      })),
+      truncated: data.length > 200,
+    };
+  }
+
   async listWorkflows(repository: string, limit = 20, page = 1) {
     await this.assertRepositoryAccess(repository);
     const { owner, repo } = this.parseRepository(repository);
