@@ -4,8 +4,8 @@ import {
   END,
   START,
   StateGraph,
-  MemorySaver,
 } from "@langchain/langgraph";
+import type { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 
 import {OpsPilotState, OpsPilotStateType} from "./state.js";
 
@@ -222,8 +222,6 @@ function routeAfterEvidence(
 const toolNode = new ToolNode(incidentTools);
 const generalToolNode = new ToolNode(githubTools);
 
-const checkpointer = new MemorySaver();
-
 /**
  * Build Graph
  */
@@ -302,6 +300,6 @@ const workflow = new StateGraph(
   );
 
 
-export const graph = workflow.compile({
-  checkpointer,
-});
+export function createGraph(checkpointer: PostgresSaver) {
+  return workflow.compile({ checkpointer });
+}

@@ -9,6 +9,8 @@ OpsPilot is a LangGraph incident investigator. It discovers CloudWatch Log Group
 3. Grant the profile `logs:DescribeLogGroups` for discovery and `logs:FilterLogEvents` for the Log Groups it may read.
 4. Run `pnpm start` for an interactive conversation. Enter a question and press Return; use `/clear` for a new conversation or `/exit` to quit. You can also ask one question with `pnpm start "How is Musebase structured?"`.
 
+Conversations are stored in PostgreSQL and resume across CLI restarts. The CLI automatically opens the most recent conversation for the current local OS user and machine. Use `/sessions` to list your conversations, `/new` (or `/clear`) to start another, and `/resume <session-id>` to switch back. Local OS identity is a convenience boundary, not authentication: anyone with the shared database credentials can access the database directly. A future backend integration must replace it with a verified JWT user ID and enforce ownership server-side. LangGraph checkpoints include tool outputs, which may contain source code and operational logs; restrict database access and set an appropriate retention policy before broader deployment.
+
 The agent classifies each request. Architecture, code, changes, and deployment questions use GitHub read-only tools and produce a direct answer. It can browse repository directories to locate architecture documentation and source files. An explicit bug or incident report uses the incident investigation graph and may query CloudWatch. When the request is unclear, it follows the general path. No incident ID, service, or environment is required for a general question.
 
 For incident investigations, the agent discovers CloudWatch Log Groups using the AWS identity, chooses groups relevant to the incident, and can follow clues across services. Searches default to the last 30 minutes and are limited to a 24-hour window, 50 returned events, and five CloudWatch result pages per call.
@@ -17,4 +19,4 @@ GitHub access requires `GITHUB_TOKEN` with read access to the relevant repositor
 
 ## PostgreSQL connection
 
-Set the `PG*` variables from `.env.example` in your ignored local `.env` or deployment environment, then run `pnpm db:check`. The check is read-only and confirms the configured database role can access the `musebase_ops_pilot` schema. The connection pool uses TLS, verifies the server certificate by default, and sets its search path to `musebase_ops_pilot,public`. No tables or agent persistence are created yet.
+Set the `PG*` variables from `.env.example` in your ignored local `.env` or deployment environment, then run `pnpm db:check`. The check is read-only and confirms the configured database role can access the `musebase_ops_pilot` schema. The connection pool uses TLS, verifies the server certificate by default, and sets its search path to `musebase_ops_pilot,public`. Starting the CLI creates the LangGraph checkpoint and session tables in that schema when needed.

@@ -26,6 +26,7 @@
     "@aws-sdk/client-cloudwatch-logs": "^3.1140.0",
     "@langchain/core": "^1.2.11",
     "@langchain/langgraph": "^1.4.16",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.5",
     "@langchain/openai": "^1.5.13",
     "dotenv": "^18.0.1",
     "ink": "^7.1.1",
